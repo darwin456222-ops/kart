@@ -123,12 +123,12 @@
             border-radius: 12px;
             border: 1px dashed #cbd5e1;
             width: 90%;
-            min-height: 100px;
+            min-height: 110px;
             justify-content: center;
         }
         .slot-cards-container {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             justify-content: center;
             flex-wrap: wrap;
             width: 100%;
@@ -146,8 +146,8 @@
 
         /* Kart Tasarımı */
         .pet-card {
-            width: 72px;
-            height: 102px;
+            width: 68px;
+            height: 96px;
             background: #ffffff;
             border-radius: 10px;
             display: inline-flex;
@@ -243,42 +243,35 @@
             border-radius: 12px;
             font-size: 13px;
             text-align: center;
-            font-weight: 500;
-            border: 1px dashed #cbd5e1;
-            line-height: 1.4;
-        }
-        .personality-tag {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 8px;
-            font-size: 11px;
             font-weight: bold;
-            margin-top: 4px;
+            border: 1px dashed #cbd5e1;
+            color: #334155;
         }
-        .p-iyi { background: #dcfce7; color: #166534; }
-        .p-adil { background: #e0f2fe; color: #0369a1; }
-        .p-acgozlu { background: #fee2e2; color: #991b1b; }
     </style>
 </head>
 <body>
 
 <div id="gameContainer">
     <header>
-        <span style="font-weight: 700; font-size: 15px; color: #334155;">🎴 Takas Odası (Kişilikler)</span>
+        <span style="font-weight: 700; font-size: 15px; color: #334155;">🎴 Takas Odası (Gizemli)</span>
         <div class="gold-display">🪙 <span id="goldText">100</span></div>
     </header>
 
-    <div class="info-bubble" id="customerSpeech">
-        👤 Bir takasçı yaklaşıyor...
+    <!-- Statik Bilgilendirme Alanı -->
+    <div class="info-bubble">
+        👤 Bir müşteri masaya kartlarını dizdi...
     </div>
 
+    <!-- Oyun Tahtası -->
     <div id="boardContainer">
+        <!-- Üst Alan -->
         <div class="board-zone">
             <button class="zone-btn" title="Reddet (X)" onclick="handleBoardAction('carpi')"></button>
             <button class="zone-btn" title="Daha Fazlası (+)" onclick="handleBoardAction('arti')"></button>
             <button class="zone-btn" title="Kabul Et (Tik)" onclick="handleBoardAction('tik')"></button>
         </div>
 
+        <!-- Orta Çoklu Sergi Bölgesi -->
         <div class="trade-center">
             <div class="trade-slot">
                 <span class="slot-title">Onun Teklifi (🪙<span id="custTotalVal">0</span>)</span>
@@ -292,6 +285,7 @@
             </div>
         </div>
 
+        <!-- Alt Alan -->
         <div class="board-zone">
             <button class="zone-btn" title="Kabul Et (Tik)" onclick="handleBoardAction('tik')"></button>
             <button class="zone-btn" title="Daha Fazlası (+)" onclick="handleBoardAction('arti')"></button>
@@ -310,10 +304,11 @@
         </button>
     </div>
 
+    <!-- Çanta Paneli -->
     <div class="card-panel">
         <div class="section-title" style="display: flex; justify-content: space-between;">
             <span>🎒 Kart Çantan (<span id="cardCount">0</span>)</span>
-            <span style="color: #2563eb; font-weight: bold; font-size:11px;">İnternetsiz Otomatik Kayıt</span>
+            <span style="color: #64748b; font-weight: bold; font-size:11px;">Müşteri Kişilikleri Gizli!</span>
         </div>
         <div class="deck-container" id="deckList">
             <span class="empty-text">Henüz kartın yok. Paket açarak başla!</span>
@@ -333,21 +328,13 @@ const efektler = [
     { id: "galaktik", class: "efekt-galaktik", value: 7 }
 ];
 
-// KİŞİLİK MATRİSİ
-const kisilikler = [
-    { id: "iyi", ad: "❤️ İyi Kalpli", class: "p-iyi" },
-    { id: "adil", ad: "⚖️ Adaletli", class: "p-adil" },
-    { id: "acgozlu", ad: "🤑 Açgözlü", class: "p-acgozlu" }
-];
-
 let playerGold = 100;
 let myDeck = [];
 let selectedIds = [];
-let currentCustomerCard = null;
-let currentCustomerPersonality = null; // Aktif müşterinin kişiliği
+let customerCards = []; // ÇOKLU MÜŞTERİ KARTLARI İÇİN DİZİ OLUŞTURULDU
+let secretPersonalityId = 0; // Kişilik numarası tamamen gizli tutuluyor
 let extraDemandCount = 0;
 
-// LOCALSTORAGE VERİ SAKLAMA
 function saveGameData() {
     localStorage.setItem('pet_card_gold', playerGold.toString());
     localStorage.setItem('pet_card_deck', JSON.stringify(myDeck));
@@ -367,7 +354,6 @@ function loadGameData() {
     }
 }
 
-// KART PUAN MOTORU
 function calculateCardValue(card) {
     if (!card) return 0;
     const kIndex = karakterler.indexOf(card.karakter) + 1;
@@ -410,28 +396,36 @@ function createCardElement(card, onClickFn) {
     return cardDiv;
 }
 
-// YENİ KİŞİLİKLİ MÜŞTERİ ÇAĞIRMA
+// MÜŞTERİNİN BİRDEN FAZLA KART KOYDUĞU YENİ SİSTEM
 function nextCustomer() {
-    currentCustomerCard = generateRandomCard();
-    currentCustomerPersonality = kisilikler[Math.floor(Math.random() * kisilikler.length)];
+    customerCards = [];
     extraDemandCount = 0;
     selectedIds = [];
     
-    document.getElementById('customerSlot').innerHTML = '';
-    document.getElementById('customerSlot').appendChild(createCardElement(currentCustomerCard, null));
+    // Müşteri rastgele 1, 2 veya 3 kart koysun
+    const cardCountToPlace = Math.floor(Math.random() * 3) + 1;
+    for(let i = 0; i < cardCountToPlace; i++) {
+        customerCards.push(generateRandomCard());
+    }
+
+    // 1 ile 6 arasında tamamen sürpriz bir kişilik atanıyor (Kodları aşağıda gizli)
+    secretPersonalityId = Math.floor(Math.random() * 6) + 1;
     
-    const cValue = calculateCardValue(currentCustomerCard);
-    document.getElementById('custTotalVal').innerText = cValue;
+    const customerSlot = document.getElementById('customerSlot');
+    customerSlot.innerHTML = '';
+    customerCards.forEach(card => {
+        customerSlot.appendChild(createCardElement(card, null));
+    });
     
-    // Mesaj kutusuna kişiliği de yazdırıyoruz
-    document.getElementById('customerSpeech').innerHTML = `
-        👤 <b>Müşteri Geldi!</b><br>
-        "Bendeki bu kartı (Değeri: 🪙${cValue}) takas edelim."<br>
-        <span class="personality-tag ${currentCustomerPersonality.class}">Kişilik: ${currentCustomerPersonality.ad}</span>
-    `;
-    
+    document.getElementById('custTotalVal').innerText = getCustomerTotalValue();
     document.getElementById('playerSlot').innerHTML = `<span style="font-size:10px; color:#94a3b8; text-align:center;">Alttan birden fazla kart seçebilirsin</span>`;
     document.getElementById('playerTotalVal').innerText = "0";
+}
+
+function getCustomerTotalValue() {
+    let total = 0;
+    customerCards.forEach(c => { total += calculateCardValue(c); });
+    return total;
 }
 
 function getPlayerTotalValue() {
@@ -444,127 +438,114 @@ function getPlayerTotalValue() {
 }
 
 function handleBoardAction(action) {
-    if (!currentCustomerCard) return;
+    if (customerCards.length === 0) return;
 
-    // X BUTONU: HER DURUMDA TAKASI REDDEDEBİLİR
+    // X BUTONU TAKASI REDDEDER
     if (action === 'carpi') {
-        alert("❌ Takası reddettin. Müşteri dükkandan ayrıldı.");
+        alert("❌ Takası reddettin. Yeni müşteri kartlarını hazırlıyor...");
         nextCustomer();
         updateUI();
         return;
     }
 
-    const customerValue = calculateCardValue(currentCustomerCard);
-    const playerTotalValue = getPlayerTotalValue();
+    const customerTotal = getCustomerTotalValue();
+    const playerTotal = getPlayerTotalValue();
 
-    // + BUTONU: DAHA FAZLA ŞEY İSTE
+    // + BUTONU PAZARLIK SİSTEMİ
     if (action === 'arti') {
         if (selectedIds.length === 0) {
-            alert("Müşteriden fazlasını istemeden önce masaya kart koymalısın!");
+            alert("Müşteriden bir talepte bulunmadan önce masaya kendi kartlarından eklemelisin!");
             return;
         }
-        
         if (extraDemandCount >= 2) {
-            alert("👤 Müşteri: Sabrımı zorlama, daha fazla bir şey vermem!");
+            alert("Müşteri daha fazla pazarlık yapmayı kabul etmiyor!");
             return;
         }
 
-        // Açgözlü müşteri + basınca kolay kolay bir şey vermez
-        if (currentCustomerPersonality.id === 'acgozlu' && playerTotalValue <= customerValue) {
-            document.getElementById('customerSpeech').innerHTML = `
-                👤 <b>Müşteri:</b> Hem bana ucuz kartlar veriyorsun hem de üstüne fazlasını mı istiyorsun? Vermiyorum!<br>
-                <span class="personality-tag ${currentCustomerPersonality.class}">Kişilik: ${currentCustomerPersonality.ad}</span>
-            `;
-            alert("⚠️ Açgözlü müşteri teklifi yükseltmeyi reddetti!");
+        // Gizli kişiliklere bağlı olarak + butonuna tepki verirler
+        if ((secretPersonalityId === 3 || secretPersonalityId === 5) && playerTotal <= customerTotal) {
+            alert("Müşteri teklifini yükseltmeyi doğrudan reddetti!");
             return;
         }
 
         extraDemandCount++;
         if (Math.random() < 0.5) {
-            currentCustomerCard.tur = degerTurleri[Math.min(degerTurleri.indexOf(currentCustomerCard.tur) + 1, degerTurleri.length - 1)];
-            if(!currentCustomerCard.efekt) {
-                currentCustomerCard.efekt = efektler[Math.floor(Math.random() * efektler.length)].id;
+            // Var olan ilk kartı güçlendir veya yeni bir küçük kart fırlat
+            if(customerCards.length < 4) {
+                customerCards.push(generateRandomCard());
+            } else {
+                customerCards[0].tur = degerTurleri[Math.min(degerTurleri.indexOf(customerCards[0].tur) + 1, degerTurleri.length - 1)];
             }
-            document.getElementById('customerSpeech').innerHTML = `
-                👤 <b>Müşteri:</b> Al bakalım, senin için teklifimi büyüttüm!<br>
-                <span class="personality-tag ${currentCustomerPersonality.class}">Kişilik: ${currentCustomerPersonality.ad}</span>
-            `;
         } else {
             playerGold += 20;
-            document.getElementById('customerSpeech').innerHTML = `
-                👤 <b>Müşteri:</b> Tamam, kartımın yanına sana ekstra 🪙20 Altın daha veriyorum.<br>
-                <span class="personality-tag ${currentCustomerPersonality.class}">Kişilik: ${currentCustomerPersonality.ad}</span>
-            `;
+            alert("Müşteri masaya ekstra 🪙20 Altın nakit ekledi!");
         }
         
-        document.getElementById('customerSlot').innerHTML = '';
-        document.getElementById('customerSlot').appendChild(createCardElement(currentCustomerCard, null));
-        document.getElementById('custTotalVal').innerText = calculateCardValue(currentCustomerCard);
+        const customerSlot = document.getElementById('customerSlot');
+        customerSlot.innerHTML = '';
+        customerCards.forEach(card => {
+            customerSlot.appendChild(createCardElement(card, null));
+        });
+        document.getElementById('custTotalVal').innerText = getCustomerTotalValue();
         saveGameData();
         updateUI();
         return;
     }
 
-    // TİK BUTONU: KABUL ET
+    // TİK BUTONU KABUL ET SİSTEMİ (GİZLİ KİŞİLİK ALGORİTMALARI)
     if (action === 'tik') {
         if (selectedIds.length === 0) {
-            alert("Takası onaylamak için çantandan kartlar seçip ortaya koymalısın!");
+            alert("Takası tamamlamak için ortaya kart koymalısın!");
             return;
         }
 
         let tradeApproved = false;
-        let rejectReason = "";
 
-        // KİŞİLİK KONTROL FİLTRELERİ
-        if (currentCustomerPersonality.id === 'iyi') {
-            // İYİ KALPLİ: Senin kartın onun kartından en fazla 15 puan düşük olsa bile (fark <= 15) kabul eder.
-            if (playerTotalValue >= customerValue - 15) {
-                tradeApproved = true;
-            } else {
-                rejectReason = `Çok iyi niyetliyim ama bu kadar da ucuza veremem! (Kendi kartından en fazla 15 fark kabul eder)`;
-            }
+        // Gizli, sürpriz ve senin istediğin kişiliklerin kod blokları
+        if (secretPersonalityId === 1) { 
+            if (playerTotal >= customerTotal - 15) tradeApproved = true;
         } 
-        else if (currentCustomerPersonality.id === 'adil') {
-            // ADALETLİ: En fazla 5 fark kabul eder.
-            if (Math.abs(playerTotalValue - customerValue) <= 5 || playerTotalValue >= customerValue) {
-                tradeApproved = true;
-            } else {
-                rejectReason = `Bu takas adil değil. Aramızda en fazla 5 puan fark olmalı!`;
-            }
+        else if (secretPersonalityId === 2) { 
+            if (Math.abs(playerTotal - customerTotal) <= 5 || playerTotal >= customerTotal) tradeApproved = true;
         } 
-        else if (currentCustomerPersonality.id === 'acgozlu') {
-            // AÇGÖZLÜ: Ya kuruşu kuruşuna eşit olacak ya da sen zararda olacaksın (playerTotalValue >= customerValue)
-            if (playerTotalValue >= customerValue) {
-                tradeApproved = true;
-            } else {
-                rejectReason = `Kâr etmeyeceğim takasa girmem! Ya tam değerini ver ya da daha değerli kartlar koy!`;
-            }
+        else if (secretPersonalityId === 3) { 
+            if (playerTotal >= customerTotal) tradeApproved = true;
+        } 
+        else if (secretPersonalityId === 4) { 
+            // Sürpriz Kişilik A
+            if (playerTotal >= customerTotal * 1.1) tradeApproved = true;
+        } 
+        else if (secretPersonalityId === 5) { 
+            // Sürpriz Kişilik B
+            if (playerTotal >= customerTotal + 10) tradeApproved = true;
+        } 
+        else if (secretPersonalityId === 6) { 
+            // Sürpriz Kişilik C
+            if (playerTotal >= customerTotal - 5) tradeApproved = true;
         }
 
         if (tradeApproved) {
-            // İşlemi gerçekleştir
+            // Senin verdiklerini çantadan sil
             selectedIds.forEach(id => {
                 const idx = myDeck.findIndex(c => c.id === id);
                 if (idx !== -1) myDeck.splice(idx, 1);
             });
             
-            myDeck.push(currentCustomerCard);
-            alert("🎉 Takas Başarılı! Yeni kartı çantana ekledin.");
+            // Müşterinin verdiklerinin tamamını çantaya ekle
+            customerCards.forEach(c => {
+                myDeck.push(c);
+            });
             
+            alert(`🎉 Takas gerçekleşti! Tam ${customerCards.length} yeni kart aldın.`);
             saveGameData();
             nextCustomer();
             updateUI();
         } else {
-            document.getElementById('customerSpeech').innerHTML = `
-                👤 <b>Müşteri:</b> ${rejectReason}<br>
-                <span class="personality-tag ${currentCustomerPersonality.class}">Kişilik: ${currentCustomerPersonality.ad}</span>
-            `;
-            alert("⚠️ Müşteri kişiliğinden dolayı takası reddetti!");
+            alert("❌ Müşteri bu teklifi onaylamadı! Masadaki kart değerlerini değiştirmeyi dene veya (X) ile yeni birini çağır.");
         }
     }
 }
 
-// ÇOKLU SEÇİM TETİKLEME
 function toggleCardSelection(id) {
     const index = selectedIds.indexOf(id);
     if (index === -1) {
